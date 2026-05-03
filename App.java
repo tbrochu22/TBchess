@@ -2,15 +2,15 @@
 // Tyler Brochu
 package ser120.TBchess;
 
-import ser120.TBchess.game.GameManager;
+import javax.swing.SwingUtilities;
+
+import ser120.TBchess.ui.ChessFrame;
 
 public class App {
-    public static void main(String[] args) {
-        System.out.println("--- Starting SER120 Chess App ---");
-        
-        GameManager gm = new GameManager();
-        gm.runGame();
-        
-        System.out.println("--- Session Ended ---");
+    public static void main(String[] args){
+        SwingUtilities.invokeLater(() -> {
+            ChessFrame frame = new ChessFrame();
+            frame.setVisible(true);
+        });
     }
 }

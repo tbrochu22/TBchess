@@ -58,33 +58,144 @@ public class ChessBoard {
     }
 
     public boolean movePiece(int fromRow, int fromCol, int toRow, int toCol, boolean whiteTurn) {
+        return movePieceDetailed(fromRow, fromCol, toRow, toCol, whiteTurn).isSuccess();
+    }
+
+    public MoveResult movePieceDetailed(int fromRow, int fromCol, int toRow, int toCol, boolean whiteTurn) {
         if (!inBounds(fromRow, fromCol) || !inBounds(toRow, toCol)) {
-            return false;
+            return new MoveResult(false, "That square is outside the board.", null);
         }
 
         Piece piece = board[fromRow][fromCol];
         if (piece == null) {
-            return false;
+            return new MoveResult(false, "Select a piece before moving.", null);
         }
 
         if (piece.isWhite() != whiteTurn) {
-            return false;
+            return new MoveResult(false, "It is not that piece's turn.", null);
         }
 
         Piece target = board[toRow][toCol];
         if (target != null && target.isWhite() == piece.isWhite()) {
-            return false;
+            return new MoveResult(false, "You cannot capture your own piece.", null);
+        }
+
+        if (target instanceof King) {
+            return new MoveResult(false, "You cannot capture the king directly.", null);
         }
 
         if (!piece.canMove(this, toRow, toCol)) {
-            return false;
+            return new MoveResult(false, "That move is illegal for this piece.", null);
+        }
+
+        if (!isSafeMove(fromRow, fromCol, toRow, toCol, whiteTurn)) {
+            return new MoveResult(false, "That move would leave your king in check.", null);
         }
 
         board[toRow][toCol] = piece;
         board[fromRow][fromCol] = null;
         piece.setPosition(toRow, toCol);
 
-        return true;
+        return new MoveResult(true, "Move completed.", target);
+    }
+
+    public boolean isInCheck(boolean white) {
+        int[] kingPosition = findKing(white);
+        if (kingPosition[0] == -1) {
+            return false;
+        }
+
+        int kingRow = kingPosition[0];
+        int kingCol = kingPosition[1];
+
+        for (int row = 0; row < 8; row++) {
+            for (int col = 0; col < 8; col++) {
+                Piece piece = board[row][col];
+                if (piece == null || piece.isWhite() == white) {
+                    continue;
+                }
+
+                if (piece.canMove(this, kingRow, kingCol)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public boolean hasAnyLegalMove(boolean white) {
+        for (int fromRow = 0; fromRow < 8; fromRow++) {
+            for (int fromCol = 0; fromCol < 8; fromCol++) {
+                Piece piece = board[fromRow][fromCol];
+                if (piece == null || piece.isWhite() != white) {
+                    continue;
+                }
+
+                for (int toRow = 0; toRow < 8; toRow++) {
+                    for (int toCol = 0; toCol < 8; toCol++) {
+                        Piece target = board[toRow][toCol];
+                        if (target != null && target.isWhite() == white) {
+                            continue;
+                        }
+
+                        if (target instanceof King) {
+                            continue;
+                        }
+
+                        if (!piece.canMove(this, toRow, toCol)) {
+                            continue;
+                        }
+
+                        if (isSafeMove(fromRow, fromCol, toRow, toCol, white)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public boolean isCheckmate(boolean white) {
+        return isInCheck(white) && !hasAnyLegalMove(white);
+    }
+
+    public boolean isStalemate(boolean white) {
+        return !isInCheck(white) && !hasAnyLegalMove(white);
+    }
+
+    private int[] findKing(boolean white) {
+        for (int row = 0; row < 8; row++) {
+            for (int col = 0; col < 8; col++) {
+                Piece piece = board[row][col];
+                if (piece instanceof King && piece.isWhite() == white) {
+                    return new int[] {row, col};
+                }
+            }
+        }
+
+        return new int[] {-1, -1};
+    }
+
+    private boolean isSafeMove(int fromRow, int fromCol, int toRow, int toCol, boolean whiteTurn) {
+        Piece movingPiece = board[fromRow][fromCol];
+        Piece capturedPiece = board[toRow][toCol];
+        int originalRow = movingPiece.getRow();
+        int originalCol = movingPiece.getCol();
+
+        board[toRow][toCol] = movingPiece;
+        board[fromRow][fromCol] = null;
+        movingPiece.setPosition(toRow, toCol);
+
+        boolean safe = !isInCheck(whiteTurn);
+
+        board[fromRow][fromCol] = movingPiece;
+        board[toRow][toCol] = capturedPiece;
+        movingPiece.setPosition(originalRow, originalCol);
+
+        return safe;
     }
 
     public boolean isPathClear(int fromRow, int fromCol, int toRow, int toCol) {
